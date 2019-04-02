@@ -6,6 +6,65 @@ from pyspark.sql import SparkSession
 from pyspark.sql import types as T
 
 
+def string_to_type(s):
+    tname = s.lower()
+
+    if tname == "int":
+        return T.IntegerType()
+    elif tname == "long":
+        return T.LongType()
+    else:
+        return T.StringType()
+
+
+def random_cell(ftype):
+    if ftype == "int":
+        return random.getrandbits(31)
+    elif ftype == "long":
+        return random.getrandbits(63)
+    else:
+        return ''.join(random.choices(string.ascii_lowercase, k=24))
+
+
+def process_wildcard(cell):
+    if "%RAND%" in cell:
+        return random_cell("string")
+    else:
+        return cell
+
+
+def process_wildcards(cells):
+    return [process_wildcard(cell) for cell in cells]
+
+
+def table_to_spark(spark, table):
+    cols = [h.split(':') for h in table.headings]
+    schema = T.StructType([T.StructField(name + "_str", T.StringType(), False) for (name, _) in cols])
+    rows = [process_wildcards(row.cells) for row in table]
+    df = spark.createDataFrame(rows, schema=schema)
+
+    for (name, field_type) in cols:
+        df = (
+            df
+                .withColumn(name, df[name + "_str"].cast(string_to_type(field_type)))
+                .drop(name + "_str")
+        )
+
+    return df
+
+
+def random_row(cols):
+    return [random_cell(ftype) for (_, ftype) in cols]
+
+
+def generate_random_table(spark, config, row_count):
+    cols = [(row['name'], row['type']) for row in config]
+    schema = T.StructType([T.StructField(name, string_to_type(ftype), False) for (name, ftype) in cols])
+    rows = [random_row(cols) for _ in range(0, int(row_count))]
+    df = spark.createDataFrame(rows, schema=schema)
+    return df
+
+
 @given('a spark session')
 def step_impl(context):
     context.spark = (
@@ -31,37 +90,15 @@ def step_impl(context, x):
     assert (context.result == int(x))
 
 
-def string_to_type(s):
-    tname = s.lower()
-
-    if tname == "int":
-        return T.IntegerType()
-    elif tname == "long":
-        return T.LongType()
-    else:
-        return T.StringType()
-
-
-def table_to_spark(spark, table):
-    cols = [h.split(':') for h in table.headings]
-    schema = T.StructType([T.StructField(name + "_str", T.StringType(), False) for (name, _) in cols])
-    rows = [row.cells for row in table]
-    df = spark.createDataFrame(rows, schema=schema)
-
-    for (name, field_type) in cols:
-        df = (
-            df
-                .withColumn(name, df[name + "_str"].cast(string_to_type(field_type)))
-                .drop(name + "_str")
-        )
-
-    df.describe()
-    return df
-
-
 @given(u'a table called "{table_name}" containing')
 def step_impl(context, table_name):
     df = table_to_spark(context.spark, context.table)
+    df.createOrReplaceTempView(table_name)
+
+
+@given(u'a table called "{table_name}" containing "{row_count}" rows with schema')
+def step_impl(context, table_name, row_count):
+    df = generate_random_table(context.spark, context.table, row_count)
     df.createOrReplaceTempView(table_name)
 
 
@@ -96,30 +133,6 @@ def step_impl(context, table_name):
     assert (actual_df.subtract(expected_df).count() == 0)
 
 
-def random_cell(ftype):
-    if ftype == "int":
-        return random.getrandbits(31)
-    elif ftype == "long":
-        return random.getrandbits(63)
-    else:
-        return ''.join(random.choices(string.ascii_lowercase, k=24))
-
-
-def random_row(cols):
-    return [random_cell(ftype) for (_, ftype) in cols]
-
-
-@given(u'a table called "{table_name}" containing "{row_count}" rows with schema')
-def step_impl(context, table_name, row_count):
-    cols = [(row['name'], row['type']) for row in context.table]
-
-    schema = T.StructType([T.StructField(name, string_to_type(ftype), False) for (name, ftype) in cols])
-    rows = [random_row(cols) for _ in range(0, int(row_count))]
-    df = context.spark.createDataFrame(rows, schema=schema)
-
-    df.createOrReplaceTempView(table_name)
-
-
 @then(u'the table "{table_name}" has "{row_count}" rows')
 def step_impl(context, table_name, row_count):
     df = context.spark.sql("select * from {0}".format(table_name))
@@ -136,3 +149,12 @@ def step_impl(context, table_name, col_count):
     df.show()
 
     assert(len(df.schema) == int(col_count))
+
+
+@then(u'the value "{value}" is not present in the field "{field}" of table "{table}"')
+def step_impl(context, table, field, value):
+    df = context.spark.sql("select * from {0} where {1} = '{2}'".format(table, field, value))
+
+    df.show()
+
+    assert (df.count() == 0)
