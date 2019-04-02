@@ -1,3 +1,6 @@
+import random
+import string
+
 from behave import *
 from pyspark.sql import SparkSession
 from pyspark.sql import types as T
@@ -91,3 +94,45 @@ def step_impl(context, table_name):
     assert (expected_df.schema == actual_df.schema)
     assert (expected_df.subtract(actual_df).count() == 0)
     assert (actual_df.subtract(expected_df).count() == 0)
+
+
+def random_cell(ftype):
+    if ftype == "int":
+        return random.getrandbits(31)
+    elif ftype == "long":
+        return random.getrandbits(63)
+    else:
+        return ''.join(random.choices(string.ascii_lowercase, k=24))
+
+
+def random_row(cols):
+    return [random_cell(ftype) for (_, ftype) in cols]
+
+
+@given(u'a table called "{table_name}" containing "{row_count}" rows with schema')
+def step_impl(context, table_name, row_count):
+    cols = [(row['name'], row['type']) for row in context.table]
+
+    schema = T.StructType([T.StructField(name, string_to_type(ftype), False) for (name, ftype) in cols])
+    rows = [random_row(cols) for _ in range(0, int(row_count))]
+    df = context.spark.createDataFrame(rows, schema=schema)
+
+    df.createOrReplaceTempView(table_name)
+
+
+@then(u'the table "{table_name}" has "{row_count}" rows')
+def step_impl(context, table_name, row_count):
+    df = context.spark.sql("select * from {0}".format(table_name))
+
+    df.show()
+
+    assert(df.count() == int(row_count))
+
+
+@then(u'the table "{table_name}" has "{col_count}" columns')
+def step_impl(context, table_name, col_count):
+    df = context.spark.sql("select * from {0}".format(table_name))
+
+    df.show()
+
+    assert(len(df.schema) == int(col_count))
