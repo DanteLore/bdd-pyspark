@@ -20,3 +20,12 @@ Feature: Generation of datasets automatically
     When I select rows from "students" where "age" greater than "10" into table "results"
     Then the table "results" has "2" rows
     And the value "%RAND%" is not present in the field "name" of table "results"
+
+  Scenario: Records with random integers
+    Given a spark session
+    And a table called "students" containing
+      | name:String | age:Int |
+      | %RAND%      | %RAND%  |
+      | %RAND%      | %RAND%  |
+      | %RAND%      | %RAND%  |
+    Then the sum of field "age" in table "students" is greater than zero
