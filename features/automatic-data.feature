@@ -3,10 +3,10 @@ Feature: Generation of datasets automatically
   Scenario: Random records
     Given a spark session
     And a table called "random_students" containing "10" rows with schema
-      | name       | type   |
-      | id         | int    |
-      | name       | string |
-      | subject_id | long  |
+      | name       | type   | mode |
+      | id         | int    | RAND |
+      | name       | string | RAND |
+      | subject_id | long   | RAND |
     Then the table "random_students" has "10" rows
     And the table "random_students" has "3" columns
 
@@ -25,7 +25,18 @@ Feature: Generation of datasets automatically
     Given a spark session
     And a table called "students" containing
       | name:String | age:Int |
-      | %RAND%      | %RAND%  |
-      | %RAND%      | %RAND%  |
-      | %RAND%      | %RAND%  |
+      | Bruce       | %RAND%  |
+      | Sandy       | %RAND%  |
+      | Rajiv       | %RAND%  |
     Then the sum of field "age" in table "students" is greater than zero
+
+  Scenario: Sequences
+    Given a spark session
+    And a table called "random_students" containing "3" rows with schema
+      | name       | type   | mode |
+      | id         | int    | SEQ  |
+      | name       | string | RAND |
+      | subject_id | long   | RAND |
+    Then the min of field "id" in table "random_students" is "1"
+    And the max of field "id" in table "random_students" is "3"
+    And the sum of field "id" in table "random_students" is "6"
