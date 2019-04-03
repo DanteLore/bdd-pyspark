@@ -1,5 +1,6 @@
 import random
 import string
+import inflect
 
 from behave import *
 from pyspark.sql import types as T
@@ -25,22 +26,25 @@ def random_cell(s):
         return ''.join(random.choices(string.ascii_lowercase, k=24))
 
 
-def seq_cell(seq_map, name, ftype):
-    if ftype.lower() not in ["int", "long"]:
-        raise ValueError("Sequences only work on integer types")
+def seq_cell(sequence_positions, inflect_engine, name, ftype):
+    val = sequence_positions.get(name, 0) + 1
+    sequence_positions[name] = val
 
-    val = seq_map.get(name, 0) + 1
-    seq_map[name] = val
+    dt = ftype.lower()
+    if dt in ["int", "long"]:
+        return val
+    elif dt in ["string", "str"]:
+        return inflect_engine.number_to_words(val)
+    else:
+        raise ValueError("Data type not supported for sequences {0}".format(dt))
 
-    return val
 
-
-def auto_row(seq_map, cols):
+def auto_row(sequence_positions, inflect_engine, cols):
     for (name, ftype, mode) in cols:
         if mode == "RAND":
             yield random_cell(ftype)
         elif mode == "SEQ":
-            yield seq_cell(seq_map, name, ftype)
+            yield seq_cell(sequence_positions, inflect_engine, name, ftype)
 
 
 def process_wildcards(cols, cells):
@@ -69,10 +73,11 @@ def table_to_spark(spark, table):
 
 
 def generate_random_table(spark, config, row_count):
-    seq_map = {}
+    sequence_positions = {}
+    inflect_engine = inflect.engine()
     cols = [(row['name'], row['type'], row['mode']) for row in config]
     schema = T.StructType([T.StructField(name, string_to_type(ftype), False) for (name, ftype, _) in cols])
-    rows = [list(auto_row(seq_map, cols)) for _ in range(0, int(row_count))]
+    rows = [list(auto_row(sequence_positions, inflect_engine, cols)) for _ in range(0, int(row_count))]
     df = spark.createDataFrame(rows, schema=schema)
     return df
 

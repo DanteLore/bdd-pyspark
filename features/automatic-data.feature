@@ -37,6 +37,41 @@ Feature: Generation of datasets automatically
       | id         | int    | SEQ  |
       | name       | string | RAND |
       | subject_id | long   | RAND |
+    And a table called "big_table" containing "100000" rows with schema
+      | name       | type   | mode |
+      | big_id     | int    | SEQ  |
     Then the min of field "id" in table "random_students" is "1"
     And the max of field "id" in table "random_students" is "3"
     And the sum of field "id" in table "random_students" is "6"
+    And the max of field "big_id" in table "big_table" is "100000"
+
+  Scenario: String based sequences
+    Given a spark session
+    And a table called "string_table" containing "1000" rows with schema
+      | name       | type   | mode |
+      | name       | string | SEQ  |
+    Then the table "string_table" has "1000" rows
+
+  Scenario: Joining two auto-generated tables
+    Given a spark session
+    And a table called "widgets" containing "1000" rows with schema
+      | name       | type   | mode |
+      | id         | int    | SEQ  |
+      | widget     | string | SEQ  |
+    And a table called "macguffins" containing "1000" rows with schema
+      | name       | type   | mode |
+      | id         | int    | SEQ  |
+      | macguffin  | string | SEQ  |
+    When I execute the following SQL into table "joined_things"
+    """
+    select w.widget, m.macguffin
+    from widgets w
+    join macguffins m on (w.id = m.id)
+    """
+    And I execute the following SQL into table "filtered_joined_things"
+    """
+    select * from joined_things where widget = 'one thousand' and macguffin = 'one thousand'
+    """
+    Then the table "joined_things" has "1000" rows
+    And the table "filtered_joined_things" has "1" rows
+

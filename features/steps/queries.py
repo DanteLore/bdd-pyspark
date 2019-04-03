@@ -51,3 +51,9 @@ def step_impl(context, table_name, row_count):
 def step_impl(context, table_name, col_count):
     df = context.spark.sql("select * from {0}".format(table_name))
     assert (len(df.schema) == int(col_count))
+
+
+@when(u'I execute the following SQL into table "{table_name}"')
+def step_impl(context, table_name):
+    df = context.spark.sql(context.text)
+    df.createOrReplaceTempView(table_name)
