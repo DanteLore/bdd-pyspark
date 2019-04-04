@@ -37,13 +37,16 @@ Feature: Generation of datasets automatically
       | id         | int    | SEQ  |
       | name       | string | RAND |
       | subject_id | long   | RAND |
-    And a table called "big_table" containing "100000" rows with schema
-      | name       | type   | mode |
-      | big_id     | int    | SEQ  |
     Then the min of field "id" in table "random_students" is "1"
     And the max of field "id" in table "random_students" is "3"
     And the sum of field "id" in table "random_students" is "6"
-    And the max of field "big_id" in table "big_table" is "100000"
+
+  Scenario: Sequences with lots of rows
+    Given a spark session
+    And a table called "big_table" containing "100000" rows with schema
+      | name       | type   | mode |
+      | big_id     | int    | SEQ  |
+    Then the max of field "big_id" in table "big_table" is "100000"
 
   Scenario: String based sequences
     Given a spark session
@@ -51,6 +54,9 @@ Feature: Generation of datasets automatically
       | name       | type   | mode |
       | name       | string | SEQ  |
     Then the table "string_table" has "1000" rows
+    And the value "one" is present in the field "name" of table "string_table"
+    And the value "one thousand" is present in the field "name" of table "string_table"
+    And the value "thirty-six" is present in the field "name" of table "string_table"
 
   Scenario: Joining two auto-generated tables
     Given a spark session

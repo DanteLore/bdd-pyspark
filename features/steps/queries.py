@@ -13,6 +13,13 @@ def step_impl(context, table, field, value):
     assert (df.count() == 0)
 
 
+@then(u'the value "{value}" is present in the field "{field}" of table "{table}"')
+def step_impl(context, table, field, value):
+    df = context.spark.sql("select * from {0} where {1} = '{2}'".format(table, field, value))
+    df.show()
+    assert (df.count() > 0)
+
+
 @then(u'the sum of field "{field_name}" in table "{table_name}" is greater than zero')
 def step_impl(context, field_name, table_name):
     df = context.spark.sql("select {0} from {1}".format(field_name, table_name))
