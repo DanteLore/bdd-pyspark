@@ -54,6 +54,12 @@ def step_impl(context, table_name, row_count):
     assert (df.count() == int(row_count))
 
 
+@then(u'the table "{table_name}" is not empty')
+def step_impl(context, table_name):
+    df = context.spark.sql("select * from {0}".format(table_name))
+    assert (df.count() > 0)
+
+
 @then(u'the table "{table_name}" has "{col_count}" columns')
 def step_impl(context, table_name, col_count):
     df = context.spark.sql("select * from {0}".format(table_name))

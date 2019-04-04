@@ -13,6 +13,8 @@ def string_to_type(s):
         return T.IntegerType()
     elif tname == "long":
         return T.LongType()
+    elif tname == "double":
+        return T.DoubleType()
     else:
         return T.StringType()
 
@@ -28,17 +30,21 @@ def random_cell(field_type, mode):
     t = field_type.lower()
     if t == "int" or t == "long":
         return random.randint(lower, upper)
+    elif t == "double":
+        return random.random()
     else:
         return ''.join(random.choices(string.ascii_lowercase, k=24))
 
 
-def seq_cell(sequence_positions, inflect_engine, name, ftype):
+def seq_cell(sequence_positions, inflect_engine, name, field_type):
     val = sequence_positions.get(name, 0) + 1
     sequence_positions[name] = val
 
-    dt = ftype.lower()
+    dt = field_type.lower()
     if dt in ["int", "long"]:
         return val
+    if dt == "double":
+        return float(val)
     elif dt in ["string", "str"]:
         return inflect_engine.number_to_words(val)
     else:
@@ -64,6 +70,10 @@ def process_wildcards(cols, cells):
 
 def table_to_spark(spark, table):
     cols = [h.split(':') for h in table.headings]
+
+    if len([c for c in cols if len(c) != 2]) > 0:
+        raise ValueError("You must specify name AND data type for columns like this 'my_field:string'")
+
     schema = T.StructType([T.StructField(name + "_str", T.StringType(), False) for (name, _) in cols])
     rows = [list(process_wildcards(cols, row.cells)) for row in table]
     df = spark.createDataFrame(rows, schema=schema)
