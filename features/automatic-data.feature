@@ -30,6 +30,37 @@ Feature: Generation of datasets automatically
       | Rajiv       | %RAND%  |
     Then the sum of field "age" in table "students" is greater than zero
 
+  Scenario: Records with bounded random integers
+    Given a spark session
+    And a table called "students" containing
+      | name:String | age:Int     |
+      | Bruce       | %RAND(2-4)% |
+      | Sandy       | %RAND(2-4)% |
+      | Rajiv       | %RAND(2-4)% |
+    When I execute the following SQL into table "correct_students"
+    """
+    select * from students where age >= 2 and age <= 4
+    """
+    Then the table "correct_students" has "3" rows
+
+  Scenario: Bounded random numbers as foreign keys
+    Given a spark session
+    And a table called "students" containing "1000" rows with schema
+      | name       | type   | mode      |
+      | id         | int    | SEQ       |
+      | subject_id | long   | RAND(1-5) |
+    And a table called "subjects" containing "5" rows with schema
+      | name       | type   | mode      |
+      | id         | int    | SEQ       |
+      | name       | string | RAND      |
+    When I execute the following SQL into table "student_subject"
+    """
+    select * from students st
+    inner join subjects su on (st.subject_id = su.id)
+    """
+    Then the table "student_subject" has "1000" rows
+
+
   Scenario: Sequences
     Given a spark session
     And a table called "random_students" containing "3" rows with schema

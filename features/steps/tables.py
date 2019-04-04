@@ -1,4 +1,5 @@
 import random
+import re
 import string
 import inflect
 
@@ -16,12 +17,17 @@ def string_to_type(s):
         return T.StringType()
 
 
-def random_cell(s):
-    tname = s.lower()
-    if tname == "int":
-        return random.getrandbits(31)
-    elif tname == "long":
-        return random.getrandbits(63)
+def random_cell(field_type, mode):
+    r = re.compile(r"^.*RAND(\(([0-9]+)-([0-9]+)\))?.*$")
+
+    (_, l, u) = r.match(mode).groups()
+
+    lower = int(l) if l else 0
+    upper = int(u) if u else 2147483647
+
+    t = field_type.lower()
+    if t == "int" or t == "long":
+        return random.randint(lower, upper)
     else:
         return ''.join(random.choices(string.ascii_lowercase, k=24))
 
@@ -41,8 +47,8 @@ def seq_cell(sequence_positions, inflect_engine, name, ftype):
 
 def auto_row(sequence_positions, inflect_engine, cols):
     for (name, ftype, mode) in cols:
-        if mode == "RAND":
-            yield random_cell(ftype)
+        if "RAND" in mode:
+            yield random_cell(ftype, mode)
         elif mode == "SEQ":
             yield seq_cell(sequence_positions, inflect_engine, name, ftype)
 
@@ -50,8 +56,8 @@ def auto_row(sequence_positions, inflect_engine, cols):
 def process_wildcards(cols, cells):
     data = list(zip(cols, cells))
     for ((_, ftype), cell) in data:
-        if "%RAND%" in cell:
-            yield random_cell(ftype)
+        if "%RAND" in cell:
+            yield random_cell(ftype, cell)
         else:
             yield cell
 
