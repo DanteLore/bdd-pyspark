@@ -200,7 +200,7 @@ Sequences are also possible with strings. English words are used for sequence va
     And the value "thirty-six" is present in the field "name" of table "string_table"
 ```
 
-### Slightly More Complex Example
+## Slightly More Complex Example
 
 In real life you might have lots of tables which need to be joined, filtered and aggregated to create the data you need.
 Here's an example of that - maybe not as complex asreal life, but you get the idea...
