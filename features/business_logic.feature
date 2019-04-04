@@ -26,3 +26,7 @@ Feature: Realistic business logic examples
     """
     Then the table "my_summary" is not empty
     And the table "test_results" has "0" rows
+
+
+  Scenario: Events to models:
+    Given a spark session
