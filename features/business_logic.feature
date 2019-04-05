@@ -28,5 +28,22 @@ Feature: Realistic business logic examples
     And the table "test_results" has "0" rows
 
 
-  Scenario: Events to models:
+  Scenario: Events to models: State changes out of order
     Given a spark session
+    And a table called "customers" containing
+      | customer_id:int | state:string |
+      | 1               | Baz          |
+      | 2               | Baz          |
+      | 3               | Baz          |
+    And a table called "transactions" containing
+      | customer_id:int | ts:timestamp        | state:string |
+      | 1               | 2019-01-01 00:00:10 | Foo          |
+      | 2               | 2019-01-01 00:00:10 | Bar          |
+      | 1               | 2019-01-01 00:00:09 | Foo          |
+      | 1               | 2019-01-01 00:00:01 | Bar          |
+    When I update my customers based on their recent transactions into table "updated_customers"
+    Then the table "updated_customers" contains
+      | customer_id:int | state:string |
+      | 1               | Foo          |
+      | 2               | Bar          |
+      | 3               | Baz          |

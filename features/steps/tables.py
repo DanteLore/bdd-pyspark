@@ -1,6 +1,8 @@
 import random
 import re
 import string
+import time
+
 import inflect
 
 from behave import *
@@ -11,7 +13,7 @@ def string_to_type(s):
     tname = s.lower()
     if tname == "int":
         return T.IntegerType()
-    elif tname == "long":
+    elif tname in ["long", "timestamp"]:
         return T.LongType()
     elif tname == "double":
         return T.DoubleType()
@@ -28,7 +30,7 @@ def random_cell(field_type, mode):
     upper = int(u) if u else 2147483647
 
     t = field_type.lower()
-    if t == "int" or t == "long":
+    if t in ["int", "long", "timestamp"]:
         return random.randint(lower, upper)
     elif t == "double":
         return random.random()
@@ -41,7 +43,7 @@ def seq_cell(sequence_positions, inflect_engine, name, field_type):
     sequence_positions[name] = val
 
     dt = field_type.lower()
-    if dt in ["int", "long"]:
+    if dt in ["int", "long", "timestamp"]:
         return val
     if dt == "double":
         return float(val)
@@ -59,11 +61,19 @@ def auto_row(sequence_positions, inflect_engine, cols):
             yield seq_cell(sequence_positions, inflect_engine, name, ftype)
 
 
-def process_wildcards(cols, cells):
+def parse_ts(s):
+    t = time.mktime(time.strptime(s, "%Y-%m-%d %H:%M:%S"))
+    return int(t)
+
+
+def process_cells(cols, cells):
     data = list(zip(cols, cells))
     for ((_, ftype), cell) in data:
+
         if "%RAND" in cell:
             yield random_cell(ftype, cell)
+        elif ftype == "timestamp":
+            yield parse_ts(cell)
         else:
             yield cell
 
@@ -75,7 +85,7 @@ def table_to_spark(spark, table):
         raise ValueError("You must specify name AND data type for columns like this 'my_field:string'")
 
     schema = T.StructType([T.StructField(name + "_str", T.StringType(), False) for (name, _) in cols])
-    rows = [list(process_wildcards(cols, row.cells)) for row in table]
+    rows = [list(process_cells(cols, row.cells)) for row in table]
     df = spark.createDataFrame(rows, schema=schema)
 
     for (name, field_type) in cols:

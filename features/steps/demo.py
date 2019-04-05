@@ -28,3 +28,10 @@ def step_impl(context, table_name):
     from beer_summary import beer_summary
     df = beer_summary(context.spark)
     df.createOrReplaceTempView(table_name)
+
+
+@when(u'I update my customers based on their recent transactions into table "{table_name}"')
+def step_impl(context, table_name):
+    from customer_state import customer_state
+    df = customer_state(context.spark)
+    df.createOrReplaceTempView(table_name)
